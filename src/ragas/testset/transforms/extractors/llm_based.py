@@ -175,10 +175,19 @@ class SummaryExtractor(LLMBasedExtractor):
     async def extract(self, node: Node) -> t.Tuple[str, t.Any]:
         node_text = node.get_property("page_content")
         if node_text is None:
-            return self.property_name, None
+            return self.property_name, ""
         chunks = self.split_text_by_token_limit(node_text, self.max_token_limit)
-        result = await self.prompt.generate(self.llm, data=StringIO(text=chunks[0]))
-        return self.property_name, result.text
+        if not chunks:
+            return self.property_name, ""
+        try:
+            result = await self.prompt.generate(self.llm, data=StringIO(text=chunks[0]))
+            if result and hasattr(result, 'text'):
+                return self.property_name, result.text
+            return self.property_name, ""
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error extracting summary: {e}")
+            return self.property_name, ""
 
 
 @dataclass
@@ -201,14 +210,21 @@ class KeyphrasesExtractor(LLMBasedExtractor):
     async def extract(self, node: Node) -> t.Tuple[str, t.Any]:
         node_text = node.get_property("page_content")
         if node_text is None:
-            return self.property_name, None
+            return self.property_name, []
         chunks = self.split_text_by_token_limit(node_text, self.max_token_limit)
         keyphrases = []
         for chunk in chunks:
-            result = await self.prompt.generate(
-                self.llm, data=TextWithExtractionLimit(text=chunk, max_num=self.max_num)
-            )
-            keyphrases.extend(result.keyphrases)
+            try:
+                result = await self.prompt.generate(
+                    self.llm, data=TextWithExtractionLimit(text=chunk, max_num=self.max_num)
+                )
+                if result and hasattr(result, 'keyphrases'):
+                    keyphrases.extend(result.keyphrases)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Error extracting keyphrases: {e}")
+                # Continue with other chunks instead of failing completely
+                continue
         return self.property_name, keyphrases
 
 
@@ -231,10 +247,19 @@ class TitleExtractor(LLMBasedExtractor):
     async def extract(self, node: Node) -> t.Tuple[str, t.Any]:
         node_text = node.get_property("page_content")
         if node_text is None:
-            return self.property_name, None
+            return self.property_name, ""
         chunks = self.split_text_by_token_limit(node_text, self.max_token_limit)
-        result = await self.prompt.generate(self.llm, data=StringIO(text=chunks[0]))
-        return self.property_name, result.text
+        if not chunks:
+            return self.property_name, ""
+        try:
+            result = await self.prompt.generate(self.llm, data=StringIO(text=chunks[0]))
+            if result and hasattr(result, 'text'):
+                return self.property_name, result.text
+            return self.property_name, ""
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error extracting title: {e}")
+            return self.property_name, ""
 
 
 @dataclass
@@ -257,15 +282,21 @@ class HeadlinesExtractor(LLMBasedExtractor):
     async def extract(self, node: Node) -> t.Tuple[str, t.Any]:
         node_text = node.get_property("page_content")
         if node_text is None:
-            return self.property_name, None
+            return self.property_name, []
         chunks = self.split_text_by_token_limit(node_text, self.max_token_limit)
         headlines = []
         for chunk in chunks:
-            result = await self.prompt.generate(
-                self.llm, data=TextWithExtractionLimit(text=chunk, max_num=self.max_num)
-            )
-            if result:
-                headlines.extend(result.headlines)
+            try:
+                result = await self.prompt.generate(
+                    self.llm, data=TextWithExtractionLimit(text=chunk, max_num=self.max_num)
+                )
+                if result and hasattr(result, 'headlines'):
+                    headlines.extend(result.headlines)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Error extracting headlines: {e}")
+                # Continue with other chunks instead of failing completely
+                continue
         return self.property_name, headlines
 
 
@@ -293,11 +324,18 @@ class NERExtractor(LLMBasedExtractor):
         chunks = self.split_text_by_token_limit(node_text, self.max_token_limit)
         entities = []
         for chunk in chunks:
-            result = await self.prompt.generate(
-                self.llm,
-                data=TextWithExtractionLimit(text=chunk, max_num=self.max_num_entities),
-            )
-            entities.extend(result.entities)
+            try:
+                result = await self.prompt.generate(
+                    self.llm,
+                    data=TextWithExtractionLimit(text=chunk, max_num=self.max_num_entities),
+                )
+                if result and hasattr(result, 'entities'):
+                    entities.extend(result.entities)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Error extracting entities: {e}")
+                # Continue with other chunks instead of failing completely
+                continue
         return self.property_name, entities
 
 
@@ -342,10 +380,19 @@ class TopicDescriptionExtractor(LLMBasedExtractor):
     async def extract(self, node: Node) -> t.Tuple[str, t.Any]:
         node_text = node.get_property("page_content")
         if node_text is None:
-            return self.property_name, None
+            return self.property_name, ""
         chunks = self.split_text_by_token_limit(node_text, self.max_token_limit)
-        result = await self.prompt.generate(self.llm, data=StringIO(text=chunks[0]))
-        return self.property_name, result.description
+        if not chunks:
+            return self.property_name, ""
+        try:
+            result = await self.prompt.generate(self.llm, data=StringIO(text=chunks[0]))
+            if result and hasattr(result, 'description'):
+                return self.property_name, result.description
+            return self.property_name, ""
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error extracting topic description: {e}")
+            return self.property_name, ""
 
 
 class ThemesAndConcepts(BaseModel):
@@ -402,10 +449,17 @@ class ThemesExtractor(LLMBasedExtractor):
         chunks = self.split_text_by_token_limit(node_text, self.max_token_limit)
         themes = []
         for chunk in chunks:
-            result = await self.prompt.generate(
-                self.llm,
-                data=TextWithExtractionLimit(text=chunk, max_num=self.max_num_themes),
-            )
-            themes.extend(result.output)
+            try:
+                result = await self.prompt.generate(
+                    self.llm,
+                    data=TextWithExtractionLimit(text=chunk, max_num=self.max_num_themes),
+                )
+                if result and hasattr(result, 'output'):
+                    themes.extend(result.output)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Error extracting themes: {e}")
+                # Continue with other chunks instead of failing completely
+                continue
 
         return self.property_name, themes

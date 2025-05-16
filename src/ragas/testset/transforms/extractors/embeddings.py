@@ -36,8 +36,16 @@ class EmbeddingExtractor(Extractor):
         """
         text = node.get_property(self.embed_property_name)
         if not isinstance(text, str):
-            raise ValueError(
+            import logging
+            logging.getLogger(__name__).warning(
                 f"node.property('{self.embed_property_name}') must be a string, found '{type(text)}'"
             )
-        embedding = self.embedding_model.embed_query(text)
-        return self.property_name, embedding
+            return self.property_name, []
+        
+        try:
+            embedding = self.embedding_model.embed_query(text)
+            return self.property_name, embedding
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error generating embedding: {e}")
+            return self.property_name, []
